@@ -71,7 +71,7 @@ def get_api_answer(timestamp):
 
 def check_response(response):
     """Проверка ответа."""
-    if not response or len(response)==0:
+    if not response or len(response) == 0:
         logging.error('Ответа нет.')
         raise ValueError
     if not isinstance(response, dict):
@@ -132,6 +132,7 @@ def main():
         updater = Updater(token=TELEGRAM_TOKEN)
         updater.start_polling()
         updater.idle()
+
 
 handler = logging.StreamHandler(stream=sys.stdout)
 logging.basicConfig(
