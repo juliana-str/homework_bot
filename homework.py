@@ -31,12 +31,16 @@ HOMEWORK_VERDICTS = {
 
 def check_tokens():
     """Проверка корректности указанных токенов."""
-    try:
-        requests.get(ENDPOINT).json()
-        logging.debug(msg=None)
-    except Exception as error:
-        logging.critical(error)
-        raise SystemExit()
+    tokens = [PRACTICUM_TOKEN,
+              TELEGRAM_TOKEN,
+              TELEGRAM_CHAT_ID
+              ]
+    for token in tokens:
+        if not isinstance(token, str):
+            logger.critical('Отсутствуют необходимые токены!')
+            raise SystemExit('Нет необходимых токенов.')
+    return len(tokens) == 3
+
 
 def send_message(bot, message):
     """Отправка сообщения в телеграмм."""
@@ -67,7 +71,7 @@ def get_api_answer(timestamp):
 
 def check_response(response):
     """Проверка ответа."""
-    if not response:
+    if not response or len(response)==0:
         logging.error('Ответа нет.')
         raise ValueError
     if not isinstance(response, dict):
@@ -92,59 +96,57 @@ def parse_status(homework):
         raise KeyError
     verdict = HOMEWORK_VERDICTS.get(homework.get('status'))
     homework_name = homework.get('homework_name')
-
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
 def main():
     """Основная логика работы бота."""
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    timestamp = {'from_date': int(time.time()-5184000)}
+    timestamp = {'from_date': int(time.time() - 5184000)}
     if not check_tokens():
-        logger.critical('Отсутствуют токены!')
+        logger.critical('Отсутствуют необходимые токены!')
         sys.stdin.close()
-
+    previous_answer = ''
     response = get_api_answer(timestamp)
-    homework = check_response(response)
-    previous_answer = parse_status(homework)
+    homeworks = check_response(response)
 
     while True:
-        try:
+        if homeworks is None:
+            logger.critical('Отсутствуют данные!')
+            break
+        for homework in homeworks:
             answer = parse_status(homework)
-            if previous_answer != answer:
+            if HOMEWORK_VERDICTS.get('approved') not in answer:
                 previous_answer = answer
-                send_message(bot, answer)
+            try:
+                answer = parse_status(homework)
+                if previous_answer != answer:
+                    send_message(bot, answer)
+                    previous_answer = answer
+            except Exception as error:
+                message = f'Сбой в работе программы: {error}'
+                send_message(bot, message)
 
-        except Exception as error:
-            message = f'Сбой в работе программы: {error}'
-            send_message(bot, message)
-
+        timestamp['from_date'] = response.get('current_date')
         time.sleep(RETRY_PERIOD)
         updater = Updater(token=TELEGRAM_TOKEN)
         updater.start_polling()
         updater.idle()
 
-
-if __name__ == '__main__':
-    main()
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 handler = logging.StreamHandler(stream=sys.stdout)
-formatter = logging.Formatter('%(asctime)s, %(levelname)s, %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
 logging.basicConfig(
     level=logging.DEBUG,
     filename='program.log',
     format='%(asctime)s, %(levelname)s, %(message)s',
-    handlers=[handler],
     encoding='utf-8'
 )
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+formatter = logging.Formatter('%(asctime)s, %(levelname)s, %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 
-logger.debug('123')
-logger.info('Сообщение отправлено')
-logger.warning('Большая нагрузка!')
-logger.error('Бот не смог отправить сообщение')
-logger.critical('Всё упало! Зовите админа!')
+if __name__ == '__main__':
+    main()
