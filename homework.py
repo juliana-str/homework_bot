@@ -7,7 +7,6 @@ from http import HTTPStatus
 import requests
 import telegram
 
-from telegram.ext import Updater
 from dotenv import load_dotenv
 
 
@@ -31,69 +30,58 @@ HOMEWORK_VERDICTS = {
 
 def check_tokens():
     """Проверка корректности указанных токенов."""
-    tokens = [PRACTICUM_TOKEN,
-              TELEGRAM_TOKEN,
-              TELEGRAM_CHAT_ID
-              ]
-    for token in tokens:
-        if not isinstance(token, str):
-            logger.critical('Отсутствуют необходимые токены!')
-            raise SystemExit('Нет необходимых токенов.')
-    return len(tokens) == 3
+    if not PRACTICUM_TOKEN:
+        logger.critical('Отсутствуют необходимый токен: PRACTICUM_TOKEN!')
+        raise SystemExit('Нет необходимых токенов.')
+    if not TELEGRAM_TOKEN:
+        logger.critical('Отсутствуют необходимый токен: TELEGRAM_TOKEN!')
+        raise SystemExit('Нет необходимых токенов.')
+    if not TELEGRAM_CHAT_ID:
+        logger.critical('Отсутствуют необходимый токен: TELEGRAM_CHAT_ID!')
+        raise SystemExit('Нет необходимых токенов.')
+    return True
 
 
-def send_message(bot, message):
+def send_message(bot, message):  # без логгирования не проходят тесты
     """Отправка сообщения в телеграмм."""
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
-        logging.debug(message)
-    except Exception as error:
-        logging.error(error)
+        logging.debug(f'Сообщение отправлено.')
+    except Exception:
+        logging.error('Сообщение не отправлено!')
+        raise Exception('Сообщение не отправлено!')
 
 
 def get_api_answer(timestamp):
     """Получение ответа от API."""
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=timestamp)
-    except requests.RequestException as error:
-        logging.error(error)
-
-    if response.status_code != HTTPStatus.OK:
-        logging.error('Нет ответа на запрос.')
-        raise ConnectionError
-
-    response = response.json()
-    if not isinstance(response, dict):
-        logging.error('Неверный формат данных.')
-        raise TypeError
-    return response
+        if response.status_code != HTTPStatus.OK:
+            raise ConnectionError
+    except requests.RequestException:
+        raise Exception('Нет ответа на запрос!')
+    return response.json()
 
 
 def check_response(response):
     """Проверка ответа."""
-    if not response or len(response) == 0:
-        logging.error('Ответа нет.')
-        raise ValueError
-    if not isinstance(response, dict):
-        logging.error('Неверный формат данных.')
-        raise TypeError
+    if not (isinstance(response, dict)
+            and isinstance(response.get('homeworks'), list)):
+        raise TypeError('Неверный формат данных.')
     if 'homeworks' not in response:
-        logging.error('Нет такого ключа.')
-        raise KeyError
-    if not isinstance(response.get('homeworks'), list):
-        logging.error('Неверный формат данных.')
-        raise TypeError
+        raise KeyError('Нет такого ключа.')
     return response.get('homeworks')
 
 
 def parse_status(homework):
     """Обновление статуса проверки работы."""
-    if 'status' not in homework:
-        raise KeyError
     if 'homework_name' not in homework:
-        raise KeyError
+        raise KeyError("В API домашки нет ключа 'homework_name'.")
+    if 'status' not in homework:
+        raise KeyError("В API домашки нет ключа 'status'.")
     if homework.get('status') not in HOMEWORK_VERDICTS:
-        raise KeyError
+        raise KeyError('Недокументированный статус домашней работы.')
+
     verdict = HOMEWORK_VERDICTS.get(homework.get('status'))
     homework_name = homework.get('homework_name')
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
@@ -102,37 +90,40 @@ def parse_status(homework):
 def main():
     """Основная логика работы бота."""
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    timestamp = {'from_date': int(time.time() - 5184000)}
-    if not check_tokens():
-        logger.critical('Отсутствуют необходимые токены!')
-        sys.stdin.close()
+    timestamp = {'from_date': 0}  # int(time.time())
+    check_tokens()
     previous_answer = ''
-    response = get_api_answer(timestamp)
-    homeworks = check_response(response)
 
     while True:
-        if homeworks is None:
-            logger.critical('Отсутствуют данные!')
-            break
-        for homework in homeworks:
-            answer = parse_status(homework)
+        response = get_api_answer(timestamp)
+        if not get_api_answer(timestamp):
+            logging.error('Нет ответа на запрос.')
+        homework = check_response(response)
+        if not homework:
+            logging.error('Неверный формат данных.')
+        if homework is None:
+            logging.error('Отсутствуют данные!')
+        try:
+            answer = parse_status(homework[0])
+            logging.debug(f'Статус проверки работы {answer}.')
             if HOMEWORK_VERDICTS.get('approved') not in answer:
                 previous_answer = answer
-            try:
-                answer = parse_status(homework)
-                if previous_answer != answer:
+            if previous_answer != answer:
+                try:
                     send_message(bot, answer)
+                    logging.debug(f'Сообщение {answer} отправлено.')
                     previous_answer = answer
-            except Exception as error:
-                message = f'Сбой в работе программы: {error}'
-                send_message(bot, message)
+                except Exception as error:
+                    logging.error(f'Сообщение не отправлено! {error}.')
+        except Exception as error:
+            logging.error(f'Сбой в работе программы: {error}.')
 
         timestamp['from_date'] = response.get('current_date')
         time.sleep(RETRY_PERIOD)
-        updater = Updater(token=TELEGRAM_TOKEN)
-        updater.start_polling()
-        updater.idle()
 
+
+if __name__ == '__main__':
+    main()
 
 handler = logging.StreamHandler(stream=sys.stdout)
 logging.basicConfig(
@@ -147,7 +138,3 @@ logger.setLevel(logging.INFO)
 formatter = logging.Formatter('%(asctime)s, %(levelname)s, %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
-
-
-if __name__ == '__main__':
-    main()
