@@ -109,12 +109,8 @@ def main():
             if HOMEWORK_VERDICTS.get('approved') not in answer:
                 previous_answer = answer
             if previous_answer != answer:
-                try:
-                    send_message(bot, answer)
-                    logging.debug(f'Сообщение {answer} отправлено.')
-                    previous_answer = answer
-                except Exception as error:
-                    logging.error(f'Сообщение не отправлено! {error}.')
+                send_message(bot, answer)
+                previous_answer = answer
         except Exception as error:
             logging.error(f'Сбой в работе программы: {error}.')
 
