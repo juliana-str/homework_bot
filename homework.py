@@ -70,7 +70,7 @@ def check_response(response):
         raise TypeError('Неверный формат данных.')
     if 'homeworks' not in response:
         raise KeyError('Нет такого ключа.')
-    return response.get('homeworks')
+    return True
 
 
 def parse_status(homework):
@@ -95,12 +95,12 @@ def main():
     previous_answer = ''
 
     while True:
-        response = get_api_answer(timestamp)
         if not get_api_answer(timestamp):
             logging.error('Нет ответа на запрос.')
-        homework = check_response(response)
-        if not homework:
+        response = get_api_answer(timestamp)
+        if not check_response(response):
             logging.error('Неверный формат данных.')
+        homework = response.get('homeworks')
         if homework is None:
             logging.error('Отсутствуют данные!')
         try:
