@@ -46,7 +46,7 @@ def send_message(bot, message):  # без логгирования не прох
     """Отправка сообщения в телеграмм."""
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
-        logging.debug(f'Сообщение отправлено.')
+        logging.debug('Сообщение отправлено.')
     except Exception:
         logging.error('Сообщение не отправлено!')
         raise Exception('Сообщение не отправлено!')
@@ -90,7 +90,7 @@ def parse_status(homework):
 def main():
     """Основная логика работы бота."""
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    timestamp = {'from_date': 0}  # int(time.time())
+    timestamp = {'from_date': int(time.time())}
     check_tokens()
     previous_answer = ''
 
