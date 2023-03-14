@@ -9,6 +9,7 @@ import telegram
 
 from dotenv import load_dotenv
 
+from exeptions import SendMessageError, GetAPIError
 
 load_dotenv()
 
@@ -42,14 +43,13 @@ def check_tokens():
     return True
 
 
-def send_message(bot, message):  # без логгирования не проходят тесты
+def send_message(bot, message):
     """Отправка сообщения в телеграмм."""
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
         logging.debug('Сообщение отправлено.')
-    except Exception:
-        logging.error('Сообщение не отправлено!')
-        raise Exception('Сообщение не отправлено!')
+    except telegram.error.TelegramError:
+        logger.error('Сообщение не отправлено!', exc_info=True)
 
 
 def get_api_answer(timestamp):
@@ -57,9 +57,13 @@ def get_api_answer(timestamp):
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=timestamp)
         if response.status_code != HTTPStatus.OK:
-            raise ConnectionError
+            raise ConnectionError(f'Нет ответа, код ошибки: {response.status_code}.')
     except requests.RequestException:
-        raise Exception('Нет ответа на запрос!')
+        raise GetAPIError(
+            f'Нет ответа на запрос! Параметры запроса: '
+            f'{ENDPOINT}, {HEADERS}, {timestamp}.'
+            f'{response.status_code}'
+        )
     return response.json()
 
 
@@ -95,33 +99,26 @@ def main():
     previous_answer = ''
 
     while True:
-        if not get_api_answer(timestamp):
-            logging.error('Нет ответа на запрос.')
-        response = get_api_answer(timestamp)
-        if not check_response(response):
-            logging.error('Неверный формат данных.')
-        homework = response.get('homeworks')
-        if homework is None:
-            logging.error('Отсутствуют данные!')
         try:
-            answer = parse_status(homework[0])
-            logging.debug(f'Статус проверки работы {answer}.')
-            if HOMEWORK_VERDICTS.get('approved') not in answer:
-                previous_answer = answer
-            if previous_answer != answer:
-                send_message(bot, answer)
-                previous_answer = answer
-        except Exception as error:
-            logging.error(f'Сбой в работе программы: {error}.')
+            response = get_api_answer(timestamp)
+            check_response(response)
+            homework = response.get('homeworks')
+            if len(homework) != 0:
+                answer = parse_status(homework[0])
+                logger.debug(answer)
 
-        timestamp['from_date'] = response.get('current_date')
+                if previous_answer != answer:
+                    send_message(bot, answer)
+                    previous_answer = answer
+                timestamp['from_date'] = response.get('current_date')
+        except Exception as error:
+            message = f'Сбой в работе программы: {error}.'
+            send_message(bot, message)
+            logger.error(f'Сбой в работе программы: {error}.', exc_info=True)
+
         time.sleep(RETRY_PERIOD)
 
 
-if __name__ == '__main__':
-    main()
-
-handler = logging.StreamHandler(stream=sys.stdout)
 logging.basicConfig(
     level=logging.DEBUG,
     filename='program.log',
@@ -129,8 +126,7 @@ logging.basicConfig(
     encoding='utf-8'
 )
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
-formatter = logging.Formatter('%(asctime)s, %(levelname)s, %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+
+if __name__ == '__main__':
+    main()
