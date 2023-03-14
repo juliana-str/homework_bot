@@ -1,6 +1,5 @@
 import logging
 import os
-import sys
 import time
 from http import HTTPStatus
 
@@ -9,7 +8,7 @@ import telegram
 
 from dotenv import load_dotenv
 
-from exeptions import SendMessageError, GetAPIError
+from exeptions import GetAPIError
 
 load_dotenv()
 
