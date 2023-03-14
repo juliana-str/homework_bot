@@ -56,7 +56,9 @@ def get_api_answer(timestamp):
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=timestamp)
         if response.status_code != HTTPStatus.OK:
-            raise ConnectionError(f'Нет ответа, код ошибки: {response.status_code}.')
+            raise ConnectionError(
+                f'Нет ответа, код ошибки: {response.status_code}.'
+            )
     except requests.RequestException:
         raise GetAPIError(
             f'Нет ответа на запрос! Параметры запроса: '
