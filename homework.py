@@ -9,7 +9,7 @@ import telegram
 
 from dotenv import load_dotenv
 
-from exeptions import GetAPIExeption
+from exeptions import GetAPIError
 
 load_dotenv()
 
@@ -60,8 +60,8 @@ def get_api_answer(timestamp):
             raise ConnectionError(
                 f'Нет ответа, код ошибки: {response.status_code}.'
             )
-    except requests.RequestException:
-        raise GetAPIExeption(
+    except requests.RequestException('Something wrong'):
+        raise GetAPIError(
             f'Нет ответа на запрос! Параметры запроса: '
             f'{ENDPOINT}, {HEADERS}, {timestamp}.'
         )

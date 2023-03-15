@@ -8,7 +8,7 @@ class SendMessageError(BaseException):
         pass
 
 
-class GetAPIExeption(RequestException):
+class GetAPIError(RequestException):
     """ Base class for get API errors. """
 
     def __init__(self, *args, **kwargs):
