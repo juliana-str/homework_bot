@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 import time
 from http import HTTPStatus
 
@@ -8,7 +9,7 @@ import telegram
 
 from dotenv import load_dotenv
 
-from exeptions import GetAPIError
+from exeptions import GetAPIExeption
 
 load_dotenv()
 
@@ -31,13 +32,13 @@ HOMEWORK_VERDICTS = {
 def check_tokens():
     """Проверка корректности указанных токенов."""
     if not PRACTICUM_TOKEN:
-        logger.critical('Отсутствуют необходимый токен: PRACTICUM_TOKEN!')
+        logging.critical('Отсутствуют необходимый токен: PRACTICUM_TOKEN!')
         raise SystemExit('Нет необходимых токенов.')
     if not TELEGRAM_TOKEN:
-        logger.critical('Отсутствуют необходимый токен: TELEGRAM_TOKEN!')
+        logging.critical('Отсутствуют необходимый токен: TELEGRAM_TOKEN!')
         raise SystemExit('Нет необходимых токенов.')
     if not TELEGRAM_CHAT_ID:
-        logger.critical('Отсутствуют необходимый токен: TELEGRAM_CHAT_ID!')
+        logging.critical('Отсутствуют необходимый токен: TELEGRAM_CHAT_ID!')
         raise SystemExit('Нет необходимых токенов.')
     return True
 
@@ -48,7 +49,7 @@ def send_message(bot, message):
         bot.send_message(TELEGRAM_CHAT_ID, message)
         logging.debug('Сообщение отправлено.')
     except telegram.error.TelegramError:
-        logger.error('Сообщение не отправлено!', exc_info=True)
+        logging.error('Сообщение не отправлено!', exc_info=True)
 
 
 def get_api_answer(timestamp):
@@ -60,10 +61,9 @@ def get_api_answer(timestamp):
                 f'Нет ответа, код ошибки: {response.status_code}.'
             )
     except requests.RequestException:
-        raise GetAPIError(
+        raise GetAPIExeption(
             f'Нет ответа на запрос! Параметры запроса: '
             f'{ENDPOINT}, {HEADERS}, {timestamp}.'
-            f'{response.status_code}'
         )
     return response.json()
 
@@ -98,6 +98,7 @@ def main():
     timestamp = {'from_date': int(time.time())}
     check_tokens()
     previous_answer = ''
+    error_message = ''
 
     while True:
         try:
@@ -106,28 +107,36 @@ def main():
             homework = response.get('homeworks')
             if len(homework) != 0:
                 answer = parse_status(homework[0])
-                logger.debug(answer)
-
+                logging.debug(answer)
                 if previous_answer != answer:
-                    send_message(bot, answer)
-                    previous_answer = answer
-                timestamp['from_date'] = response.get('current_date')
+                    try:
+                        send_message(bot, answer)
+                        previous_answer = answer
+                        timestamp['from_date'] = response.get('current_date')
+                    except telegram.error.TelegramError:
+                        logging.error(
+                            'Сообщение не отправлено!',
+                            exc_info=True
+                        )
         except Exception as error:
             message = f'Сбой в работе программы: {error}.'
-            send_message(bot, message)
-            logger.error(f'Сбой в работе программы: {error}.', exc_info=True)
+            logging.error(f'Сбой в работе программы: {error}.', exc_info=True)
+            if message != error_message:
+                error_message = message
+                send_message(bot, error_message)
 
         time.sleep(RETRY_PERIOD)
 
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    filename='program.log',
-    format='%(asctime)s, %(levelname)s, %(message)s',
-    encoding='utf-8'
-)
-logger = logging.getLogger(__name__)
-
-
 if __name__ == '__main__':
+    logging.basicConfig(
+        level=logging.DEBUG,
+        handlers=[
+            logging.FileHandler('program.log'),
+            logging.StreamHandler(stream=sys.stdout)
+        ],
+        format='%(asctime)s, %(levelname)s, %(message)s',
+        encoding='utf-8'
+    )
+
     main()
