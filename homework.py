@@ -9,7 +9,7 @@ import telegram
 
 from dotenv import load_dotenv
 
-from exeptions import GetAPIError
+from exeptions import GetAPIError, SendMessageError
 
 load_dotenv()
 
@@ -113,17 +113,15 @@ def main():
                         send_message(bot, answer)
                         previous_answer = answer
                         timestamp['from_date'] = response.get('current_date')
-                    except telegram.error.TelegramError:
-                        logging.error(
-                            'Сообщение не отправлено!',
-                            exc_info=True
-                        )
+                    except Exception:
+                        raise SendMessageError('Сообщение не отправлено!')
+
         except Exception as error:
             message = f'Сбой в работе программы: {error}.'
             logging.error(f'Сбой в работе программы: {error}.', exc_info=True)
             if message != error_message:
+                send_message(bot, message)
                 error_message = message
-                send_message(bot, error_message)
 
         time.sleep(RETRY_PERIOD)
 
