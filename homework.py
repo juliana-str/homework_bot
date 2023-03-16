@@ -109,22 +109,16 @@ def main():
                 answer = parse_status(homework[0])
                 logging.debug(answer)
                 if previous_answer != answer:
-                    try:
-                        send_message(bot, answer)
-                        previous_answer = answer
-                        timestamp['from_date'] = response.get('current_date')
-                    except Exception:
-                        raise SendMessageError('Сообщение не отправлено!')
+                    send_message(bot, answer)
+                    previous_answer = answer
+                    timestamp['from_date'] = response.get('current_date')
 
         except Exception as error:
             message = f'Сбой в работе программы: {error}.'
             logging.error(f'Сбой в работе программы: {error}.', exc_info=True)
             if message != error_message:
-                try:
-                    send_message(bot, message)
-                    error_message = message
-                except Exception:
-                    raise SendMessageError('Сообщение об ошибке не отправлено!')
+                send_message(bot, message)
+                error_message = message
 
         time.sleep(RETRY_PERIOD)
 
