@@ -9,7 +9,7 @@ import telegram
 
 from dotenv import load_dotenv
 
-from exeptions import GetAPIError, SendMessageError
+from exeptions import GetAPIError
 
 load_dotenv()
 
