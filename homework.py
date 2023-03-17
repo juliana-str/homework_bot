@@ -114,6 +114,7 @@ def main():
                     timestamp['from_date'] = response.get('current_date')
         except SendMessageError:
             logging.error('Сообщение не отправлено!', exc_info=True)
+            raise SendMessageError('Сообщение не отправлено!')
         except Exception as error:
             message = f'Сбой в работе программы: {error}.'
             logging.error(f'Сбой в работе программы: {error}.', exc_info=True)
@@ -122,7 +123,13 @@ def main():
                     send_message(bot, message)
                     error_message = message
                 except SendMessageError:
-                    'Сообщение об ошибке не отправлено!'
+                    logging.error(
+                        'Сообщение об ошибке не отправлено!',
+                        exc_info=True
+                    )
+                    raise SendMessageError(
+                        'Сообщение об ошибке не отправлено!'
+                    )
         finally:
             time.sleep(RETRY_PERIOD)
 
