@@ -1,7 +1,7 @@
 from requests import RequestException
 
 
-class SendMessageError(BaseException):
+class SendMessageError(Exception):
     """ Base class for send message errors. """
 
     def __init__(self, *args, **kwargs):

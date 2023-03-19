@@ -48,8 +48,9 @@ def send_message(bot, message):
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
         logging.debug('Сообщение отправлено.')
-    except telegram.error.TelegramError:
-        logging.error('Сообщение не отправлено!', exc_info=True)
+    except telegram.error.TelegramError as error:
+        logging.error(f'Сообщение не отправлено! {error}.', exc_info=True)
+        raise SendMessageError(f'Сообщение не отправлено! {error}')
 
 
 def get_api_answer(timestamp):
@@ -113,8 +114,7 @@ def main():
                     previous_answer = answer
                     timestamp['from_date'] = response.get('current_date')
         except SendMessageError:
-            logging.error('Сообщение не отправлено!', exc_info=True)
-            raise SendMessageError('Сообщение не отправлено!')
+            pass
         except Exception as error:
             message = f'Сбой в работе программы: {error}.'
             logging.error(f'Сбой в работе программы: {error}.', exc_info=True)
@@ -123,13 +123,8 @@ def main():
                     send_message(bot, message)
                     error_message = message
                 except SendMessageError:
-                    logging.error(
-                        'Сообщение об ошибке не отправлено!',
-                        exc_info=True
-                    )
-                    raise SendMessageError(
-                        'Сообщение об ошибке не отправлено!'
-                    )
+                    pass
+
         finally:
             time.sleep(RETRY_PERIOD)
 
