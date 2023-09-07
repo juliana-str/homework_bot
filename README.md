@@ -1,5 +1,4 @@
 ### homework_bot
-python telegram bot
 
 
 ## 1. [Описание](#1)
