@@ -52,13 +52,18 @@ python3 -m pip install --upgrade pip
 ```bash
 pip install -r requirements.txt
 ```
+```bash
 python3 manage.py makemigrations
+```
+```bash
 python3 manage.py migrate
+```
+```bash
+python3 manage.py runserver
+```
 
 Проект использует базу данных sqlite3.  
 
-python3 manage.py runserver
-```
 ---
 ## 5. Об авторе <a id=5></a>
 
